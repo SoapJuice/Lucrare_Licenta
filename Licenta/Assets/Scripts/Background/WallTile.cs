@@ -7,19 +7,19 @@ public class WallTile : MonoBehaviour
     [SerializeField]
     private Color primaryColor, secondaryColor;
     [SerializeField]
-    private SpriteRenderer renderer;
+    private SpriteRenderer customRenderer;
 
     public void PatternColor(bool pattern)
     {
-        renderer.color = pattern ? primaryColor : secondaryColor;
+        customRenderer.color = pattern ? primaryColor : secondaryColor;
     }
     public void PatternColor(bool pattern, Color primaryColor, Color secondaryColor)
     {
-        renderer.color = pattern ? primaryColor : secondaryColor;
+        customRenderer.color = pattern ? primaryColor : secondaryColor;
     }
 
     public void SingleColor(Color color)
     {
-        renderer.color = color;
+        customRenderer.color = color;
     }
 }

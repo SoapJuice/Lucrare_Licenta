@@ -1,72 +1,83 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.SearchService;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class Grid : MonoBehaviour
 {
     [SerializeField]
-    private int width, height;
-    [SerializeField]
-    private Tile tile;
+    private Transform cam;
     [SerializeField]
     private Component player;
     [SerializeField]
-    private Transform cam;
+    private Tile tile;
+    [SerializeField]
+    private SlowTile slowTile;
     [SerializeField]
     private WallTile wall;
+    [SerializeField]
+    private GameObject enemy;
 
     private Tile endTile;
+    private int[,] level;
 
     private void Start()
     {
-        GenerateBase(new Vector3(7,0,0), new Vector3(7,8,0));
+        level = RandomMapGenerator.GenerateLevel();
+        GenerateBase();
+        PrintMatrix(level);
     }
-    void GenerateBase(Vector3 StartPosition, Vector3 EndPosition)
+    void GenerateBase()
     {
-        for (int i = 0; i < width; i++)
+        for (int i = 0; i < 11; i++)
         {
-            
-            for(int j = 0; j < height; j++)
+            for (int j = 0; j < 18; j++)
             {
-             
-                var spawnedTile = Instantiate(tile, new Vector3(i,j), Quaternion.identity);
-                spawnedTile.name = $"Tile {i} {j}";
+                switch (level[i, j])
+                {
+                    case 0:
+                        spawnTile(i, j);
+                        break;
+                    case 1:
+                        spawnTile(i, j);
+                        player.transform.position = new Vector3(j, i);
+                        break;
+                    case 2:
+                        endTile = Instantiate(tile, new Vector3(j, i), Quaternion.identity);
+                        endTile.SingleColor(Color.green);
+                        break;
+                    case 3:
+                        var spawnedSlowTile = Instantiate(slowTile, new Vector3(j, i), Quaternion.identity);
+                        spawnedSlowTile.name = $"Tile {i} {j}";
+                        break;
+                    case 4:
+                        spawnTile(i, j);
+                        var spawnedEnemy = Instantiate(enemy, new Vector3(j, i), Quaternion.identity);
+                        spawnedEnemy.name = $"Enemy {i} {j}";
+                        break;
+                    default:
+                        var spawnedWalls = Instantiate(wall, new Vector3(j, i), Quaternion.identity);
+                        spawnedWalls.name = $"Wall {i} {j}";
+                        spawnedWalls.SingleColor(Color.black);
+                        break;
 
 
-                spawnedTile.PatternColor(i % 2 == 0 && j % 2 != 0 || i % 2 != 0 && j % 2 == 0);
+                }
+
             }
         }
 
-        player.transform.position = StartPosition;
+        cam.transform.position = new Vector3 ((float) 18/2 - 0.5f, (float) 11/2 - 0.5f, -10);
 
-        endTile = Instantiate(tile, EndPosition, Quaternion.identity);
-        endTile.SingleColor(Color.green);
+    }
 
-        cam.transform.position = new Vector3 ((float) width/2 - 0.5f, (float) height/2 - 0.5f, -10);
-
-        for (int i = -1;  i <= width; i++)
-        {
-            var spawnedNordWalls = Instantiate(wall, new Vector3(i, height), Quaternion.identity);
-            spawnedNordWalls.name = $"Wall {i} {height}";
-            spawnedNordWalls.SingleColor(Color.black);
-
-            var spawnedSouthWalls = Instantiate(wall, new Vector3(i, -1), Quaternion.identity);
-            spawnedSouthWalls.name = $"Wall {i} {-1}";
-            spawnedSouthWalls.SingleColor(Color.black);
-        }
-
-        for (int i = -1; i <= height; i++)
-        {
-            var spawnedEastWalls = Instantiate(wall, new Vector3(width, i), Quaternion.identity);
-            spawnedEastWalls.name = $"Wall {i} {-1}";
-            spawnedEastWalls.SingleColor(Color.black);
-
-            var spawnedWestWalls = Instantiate(wall, new Vector3(-1, i), Quaternion.identity);
-            spawnedWestWalls.name = $"Wall {i} {-1}";
-            spawnedWestWalls.SingleColor(Color.black);
-        }
+    private void spawnTile(int i, int j)
+    {
+        var spawnedStartTile = Instantiate(tile, new Vector3(j, i), Quaternion.identity);
+        spawnedStartTile.name = $"Tile {i} {j}";
+        spawnedStartTile.PatternColor(i % 2 == 0 && j % 2 != 0 || i % 2 != 0 && j % 2 == 0);
     }
 
     private void Update()
@@ -77,5 +88,26 @@ public class Grid : MonoBehaviour
             player.transform.position.y <= endTile.transform.position.y + 0.3f) { 
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
+    }
+
+    public void playerDied()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
+
+    void PrintMatrix(int[,] matrix)
+    {
+        string output = "Level Matrix:\n";
+
+        for (int row = 0; row < matrix.GetLength(0); row++)
+        {
+            for (int col = 0; col < matrix.GetLength(1); col++)
+            {
+                output += matrix[row, col] + " "; // Add space between numbers
+            }
+            output += "\n"; // New line after each row
+        }
+
+        Debug.Log(output);
     }
 }
