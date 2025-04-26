@@ -4,8 +4,9 @@ using UnityEngine;
 
 public class RandomMapGenerator : MonoBehaviour
 {
-    public static int[,] GenerateLevel(int rows = 11, int cols = 18)
+    public static int[,] GenerateLevel(LevelResult results)
     {
+        int rows = 11, cols = 18;
         int[,] matrix = new int[rows, cols];
         for (int x = 0; x < cols; x++)
         {

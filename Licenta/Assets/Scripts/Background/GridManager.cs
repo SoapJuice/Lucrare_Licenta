@@ -25,10 +25,22 @@ public class Grid : MonoBehaviour
 
     private void Start()
     {
-        level = RandomMapGenerator.GenerateLevel();
+        level = RandomMapGenerator.GenerateLevel(GameManager.Instance.lastLevelResult);
         GenerateBase();
         PrintMatrix(level);
     }
+
+    private void Update()
+    {
+        if (player.transform.position.x >= endTile.transform.position.x - 0.3f &&
+            player.transform.position.x <= endTile.transform.position.x + 0.3f &&
+            player.transform.position.y >= endTile.transform.position.y - 0.3f &&
+            player.transform.position.y <= endTile.transform.position.y + 0.3f)
+        {
+            GameManager.Instance.LevelEnded(LevelEndCondition.LevelCompleted);
+        }
+    }
+
     void GenerateBase()
     {
         for (int i = 0; i < 11; i++)
@@ -80,20 +92,7 @@ public class Grid : MonoBehaviour
         spawnedStartTile.PatternColor(i % 2 == 0 && j % 2 != 0 || i % 2 != 0 && j % 2 == 0);
     }
 
-    private void Update()
-    {
-        if (player.transform.position.x >= endTile.transform.position.x - 0.3f &&
-            player.transform.position.x <= endTile.transform.position.x + 0.3f &&
-            player.transform.position.y >= endTile.transform.position.y - 0.3f &&
-            player.transform.position.y <= endTile.transform.position.y + 0.3f) { 
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
-    }
-
-    public void playerDied()
-    {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
+    
 
     void PrintMatrix(int[,] matrix)
     {

@@ -8,6 +8,7 @@ public class Bullet : MonoBehaviour
     {
         if(collision.CompareTag("Enemy"))
         {
+            GameManager.Instance.levelStats.enemyKills += 1;
             Destroy(collision.gameObject);
             Destroy(gameObject);
         }

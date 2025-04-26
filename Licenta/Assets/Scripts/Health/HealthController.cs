@@ -6,9 +6,8 @@ using UnityEngine.Events;
 public class HealthController : MonoBehaviour
 {
     [SerializeField]
-    private float currentHeatlh;
-    [SerializeField]
     private float maxHealth;
+    private float currentHeatlh;
 
     private float healthPercentage
     {
@@ -18,10 +17,15 @@ public class HealthController : MonoBehaviour
         }
     }
 
-    public UnityEvent Died;
-
     public UnityEvent Damaged;
+
+    public UnityEvent HealthChanged;
     public bool immune { get; set; }
+
+    private void Start()
+    {
+        currentHeatlh = maxHealth;
+    }
     public void TakeDamage(float damage)
     {
         if (currentHeatlh == 0 ) 
@@ -34,15 +38,24 @@ public class HealthController : MonoBehaviour
         }
         currentHeatlh -= damage;
 
+        GameManager.Instance.levelStats.remainingPlayerHealth = getHealthPercentage();
+
+        HealthChanged.Invoke();
+
         if (currentHeatlh <= 0)
         {
             currentHeatlh = 0;
-            Died.Invoke();
+            GameManager.Instance.LevelEnded(LevelEndCondition.PlayerDeath);
         }
         else
         {
             Damaged.Invoke();
         }
+    }
+
+    public float getHealthPercentage()
+    {
+        return healthPercentage;
     }
 
 }
