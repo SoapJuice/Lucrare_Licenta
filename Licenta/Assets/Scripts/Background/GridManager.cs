@@ -22,10 +22,22 @@ public class Grid : MonoBehaviour
 
     private Tile endTile;
     private int[,] level;
+    private static int playCount = 0; // Track how many times we've played
 
     private void Start()
     {
-        level = RandomMapGenerator.GenerateLevel(GameManager.Instance.lastLevelResult);
+        // For first 3 plays, use random map, then switch to adaptive
+        if (playCount < 3)
+        {
+            level = RandomMapGenerator.GenerateLevel(GameManager.Instance.lastLevelResult);
+            AdaptiveMapGenerator.GenerateLevel();
+            playCount++;
+        }
+        else
+        {
+            level = AdaptiveMapGenerator.GenerateLevel();
+        }
+
         GenerateBase();
         PrintMatrix(level);
     }

@@ -28,10 +28,10 @@ public class GameManager : MonoBehaviour
     public void LevelEnded(LevelEndCondition condition)
     {
         lastLevelResult = new LevelResult(condition, levelStats.remainingPlayerHealth, levelStats.remainingTime, levelStats.enemyKills);
-        Debug.Log(condition);
-        Debug.Log(levelStats.remainingPlayerHealth);
-        Debug.Log(levelStats.remainingTime);
-        Debug.Log(levelStats.enemyKills);
+        Debug.Log("wincon: " + condition);
+        Debug.Log("remaining health: " + levelStats.remainingPlayerHealth);
+        Debug.Log("remaining time: " + levelStats.remainingTime);
+        Debug.Log("kills: " + levelStats.enemyKills);
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

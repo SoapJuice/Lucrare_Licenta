@@ -1,33 +1,90 @@
 using UnityEngine;
-using System.Collections.Generic;
-using System.Linq;
 
-public class AdaptiveMapGenerator : MonoBehaviour
+public static class AdaptiveMapGenerator
 {
-    public int width = 18;
-    public int height = 11;
+    private static DecisionTree difficultyTree;
+    private const bool DEBUG_MODE = true;
 
-    public float explorationRate = 0.3f;
-    public float learningRate = 0.1f;
-    public float discountFactor = 0.9f;
-
-    private DecisionTree difficultyTree;
-
-    void Awake()
+    static AdaptiveMapGenerator()
     {
-        InitializeSystems();
+        InitializeDecisionTree();
     }
 
-    void InitializeSystems()
+    private static void InitializeDecisionTree()
     {
-        difficultyTree = new DecisionTree()
-            .AddNode("Health < 30%",
-                new DecisionTree.Node("Easy Map"),
-                new DecisionTree.Node("Check Time"))
-            .AddNode("Time < 25%",
-                new DecisionTree.Node("Very Easy Map"),
-                new DecisionTree.Node("Standard Map"));
+        difficultyTree = new DecisionTree();
 
+        var easyMap = new DecisionTree.Node("Generate Easy Map");
+        var mediumMap = new DecisionTree.Node("Generate Medium Map");
+        var hardMap = new DecisionTree.Node("Generate Hard Map");
+
+        difficultyTree.AddNode(
+            "IsAggressive",
+            new DecisionTree.Node(
+                "HealthLow",
+                hardMap,
+                mediumMap
+            ),
+            new DecisionTree.Node(
+                "IsFast",
+                new DecisionTree.Node(
+                    "TimeLow",
+                    hardMap,
+                    mediumMap
+                ),
+                new DecisionTree.Node(
+                    "KillsHigh",
+                    mediumMap,
+                    easyMap
+                )
+            )
+        );
     }
 
+    public static int[,] GenerateLevel()
+    {
+
+        PlayerClusterAnalyzer.AddLevelResult(GameManager.Instance.lastLevelResult);
+
+        // Get current stats
+        var stats = GameManager.Instance.levelStats;
+        var playerType = PlayerClusterAnalyzer.ClassifyCurrentPlayer();
+
+
+        string difficulty = difficultyTree.Evaluate(stats);
+
+        int[,] map;
+        int attempts = 0;
+        do
+        {
+            map = RLMapGenerator.GenerateMap(difficulty, playerType, stats);
+            
+            attempts++;
+        } while (!Pathfinder.IsMapCompletable(map) && attempts < 5);
+
+        if (DEBUG_MODE)
+        {
+            Debug.Log($"[Map Generation]\nDifficulty: {difficulty}\nAttempts: {attempts}");
+        }
+
+        if (DEBUG_MODE)
+        {
+            Debug.Log($"[Map Generation]\n" +
+                     $"Player Type: {playerType}\n" +
+                     $"Health: {stats.remainingPlayerHealth}%\n" +
+                     $"Time: {stats.remainingTime}%\n" +
+                     $"Kills: {stats.enemyKills}/20\n" +
+                     $"Decision: {difficulty}");
+        }
+
+
+
+        return map;
+    }
+
+    // Call this from debug console
+    public static void DebugClusteringData()
+    {
+        Debug.Log(PlayerClusterAnalyzer.GetDebugString());
+    }
 }
