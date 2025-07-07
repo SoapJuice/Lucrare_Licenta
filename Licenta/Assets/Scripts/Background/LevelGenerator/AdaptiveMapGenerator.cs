@@ -1,90 +1,209 @@
 using UnityEngine;
 
-public static class AdaptiveMapGenerator
+public class AdaptiveMapGenerator
 {
-    private static DecisionTree difficultyTree;
-    private const bool DEBUG_MODE = true;
+    private float[] obstacleRatios;
+    private int rows = 11;
+    private int cols = 18;
+    private int totalObstacles = 40;
+    public float[] LastState { get; private set; }
+    public int LastAction { get; private set; }
 
-    static AdaptiveMapGenerator()
+
+
+    public AdaptiveMapGenerator()
     {
-        InitializeDecisionTree();
+        GenerateObstacleRatios();
     }
 
-    private static void InitializeDecisionTree()
+    public int[,] GenerateLevel()
     {
-        difficultyTree = new DecisionTree();
+        int[,] map = new int[rows, cols];
 
-        var easyMap = new DecisionTree.Node("Generate Easy Map");
-        var mediumMap = new DecisionTree.Node("Generate Medium Map");
-        var hardMap = new DecisionTree.Node("Generate Hard Map");
-
-        difficultyTree.AddNode(
-            "IsAggressive",
-            new DecisionTree.Node(
-                "HealthLow",
-                hardMap,
-                mediumMap
-            ),
-            new DecisionTree.Node(
-                "IsFast",
-                new DecisionTree.Node(
-                    "TimeLow",
-                    hardMap,
-                    mediumMap
-                ),
-                new DecisionTree.Node(
-                    "KillsHigh",
-                    mediumMap,
-                    easyMap
-                )
-            )
-        );
-    }
-
-    public static int[,] GenerateLevel()
-    {
-
-        PlayerClusterAnalyzer.AddLevelResult(GameManager.Instance.lastLevelResult);
-
-        // Get current stats
-        var stats = GameManager.Instance.levelStats;
-        var playerType = PlayerClusterAnalyzer.ClassifyCurrentPlayer();
-
-
-        string difficulty = difficultyTree.Evaluate(stats);
-
-        int[,] map;
-        int attempts = 0;
-        do
+        for (int r = 0; r < rows; r++)
         {
-            map = RLMapGenerator.GenerateMap(difficulty, playerType, stats);
-            
-            attempts++;
-        } while (!Pathfinder.IsMapCompletable(map) && attempts < 5);
-
-        if (DEBUG_MODE)
-        {
-            Debug.Log($"[Map Generation]\nDifficulty: {difficulty}\nAttempts: {attempts}");
+            for (int c = 0; c < cols; c++)
+            {
+                if (r == 0 || r == rows - 1 || c == 0 || c == cols - 1)
+                    map[r, c] = 9;
+                else
+                    map[r, c] = 0;
+            }
         }
 
-        if (DEBUG_MODE)
+        map[5, 1] = 1;  
+        map[5, 16] = 2;  
+
+        float pSlow = obstacleRatios[0];
+        float pEnemy = obstacleRatios[1];
+        float pWall = obstacleRatios[2];
+
+        
+
+        int slowCount = Mathf.RoundToInt(totalObstacles * pSlow);
+        int enemyCount = Mathf.RoundToInt(totalObstacles * pEnemy);
+        int wallCount = Mathf.RoundToInt(totalObstacles * pWall);
+
+        System.Random rand = new System.Random();
+
+        void PlaceTiles(int tileNumber, int count)
         {
-            Debug.Log($"[Map Generation]\n" +
-                     $"Player Type: {playerType}\n" +
-                     $"Health: {stats.remainingPlayerHealth}%\n" +
-                     $"Time: {stats.remainingTime}%\n" +
-                     $"Kills: {stats.enemyKills}/20\n" +
-                     $"Decision: {difficulty}");
+            int placed = 0;
+            while (placed < count)
+            {
+                int r = rand.Next(1, rows - 1);
+                int c = rand.Next(1, cols - 1);
+
+                if (map[r, c] == 0)
+                {
+                    map[r, c] = tileNumber;
+                    placed++;
+                }
+            }
         }
 
+        GameManager.Instance.levelStats.totalEnemys = enemyCount;
 
+
+        PlaceTiles(3, slowCount);
+        PlaceTiles(4, enemyCount);
+        PlaceTiles(9, wallCount);
 
         return map;
     }
 
-    // Call this from debug console
-    public static void DebugClusteringData()
+    private void GenerateObstacleRatios()
     {
-        Debug.Log(PlayerClusterAnalyzer.GetDebugString());
+        var stats = GameManager.Instance.savedStats;
+
+        string difficulty = EvaluateDecisionTree(stats);
+        int clusterIndex = EvaluateDataCluster(stats);
+
+        if(difficulty == "H")
+        {
+            totalObstacles = 40;
+        }
+        else if (difficulty == "N")
+        {
+            totalObstacles = 30;
+        }
+        else
+        {
+            totalObstacles = 20;
+        }
+
+        GameManager.Instance.playerType = clusterIndex;
+
+        GameManager.Instance.difficulty = difficulty;
+
+        var net = GameManager.Instance.neuralNetwork;
+        float[] input = NNBuildInput(stats, difficulty, clusterIndex);
+
+        obstacleRatios = net.Predict(input);
+
+        float reward = CalculateReward(stats, clusterIndex);
+
+        net.TrainWithReward(reward);
+
+        GameManager.Instance.savedStats.policyHistory.Add((input, reward));
+
+        Debug.Log("Difficulty: " + difficulty);
     }
+
+    float CalculateReward(Stats stats, int index)
+    {
+        float hpRatio = stats.remainingPlayerHealth;
+        float timeRatio = stats.remainingTime/100;
+        float killRatio = (float)stats.enemysKilled / stats.totalEnemys;
+
+        switch (index)
+        {
+            case 1:
+                return killRatio * 0.4f + hpRatio * 0.3f + timeRatio * 0.3f;
+            case 2:
+                return hpRatio * 0.4f + killRatio * 0.3f + timeRatio * 0.3f;
+            case 0:
+            default:
+                return hpRatio * 0.3f + killRatio * 0.3f + timeRatio * 0.4f;
+        }
+    }
+
+    private int EvaluateDataCluster(Stats stats)
+    {
+        KMeans kmeans = new KMeans();
+        Vector3 playerStats = new Vector3(stats.remainingPlayerHealth * 100, stats.remainingTime, (float)stats.enemysKilled / stats.totalEnemys * 100);
+        int clusterIndex = 0;
+
+        if (stats.rooms > 3)
+        {
+            kmeans.Fit(GameManager.Instance.savedStats.history, k: 3, maxIterations: 15);
+            clusterIndex = kmeans.Predict(playerStats);
+            Debug.Log("Player Type: " + clusterIndex + kmeans.GetClusterLabel(clusterIndex));
+
+        }
+        GameManager.Instance.savedStats.history.Add(playerStats);
+
+        return clusterIndex;
+    }
+    private string EvaluateDecisionTree(Stats stats)
+    {
+        float killRatio = 0f;
+        if (stats.totalEnemys != 0)
+        {
+            killRatio = (float)stats.enemysKilled / stats.totalEnemys * 100;
+        }
+
+        Debug.Log("health " + stats.remainingPlayerHealth*100 + " remaining time: " + stats.remainingTime + " kill ratio: " + killRatio);
+
+        Node root = new DecisionBranch(
+            () => stats.remainingPlayerHealth * 100 > 50,
+            new DecisionBranch(
+                () => stats.remainingTime < 30,
+                new DecisionNode("N"),
+                new DecisionBranch(
+                    () => killRatio > 50,
+                    new DecisionNode("H"),
+                    new DecisionNode("N"))
+            ),
+            new DecisionBranch(
+                () => stats.remainingTime < 30,
+                new DecisionNode("E"),
+                new DecisionBranch(
+                    () => killRatio > 50,
+                    new DecisionNode("N"),
+                    new DecisionNode("E"))
+            )
+        );
+        return root.Evaluate();
+    }
+
+    public static float[] NNBuildInput(Stats stats, string difficulty, int playerIndex)
+    {
+        float difficultyIndex = difficulty switch
+        {
+            "E" => 0f,
+            "N" => 0.5f,
+            "H" => 1f,
+            _ => 0f
+        };
+
+        float health = Mathf.Clamp01(stats.remainingPlayerHealth);
+        float time = Mathf.Clamp01(stats.remainingTime / 100f);
+        float killRatio = stats.totalEnemys > 0
+            ? Mathf.Clamp01((float)stats.enemysKilled / stats.totalEnemys)
+            : 0f;
+
+        
+        float[] playerType = new float[3];
+        if (playerIndex >= 0 && playerIndex <= 2)
+            playerType[playerIndex] = 1f;
+
+        
+        return new float[]
+        {
+            health, time, killRatio, difficultyIndex,
+            playerType[0], playerType[1], playerType[2]
+        };
+    }
+
 }

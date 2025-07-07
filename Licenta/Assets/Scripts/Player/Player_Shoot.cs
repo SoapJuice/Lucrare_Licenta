@@ -40,7 +40,6 @@ public class Player_Shoot : MonoBehaviour
     {
         GameObject spawnedBullet = Instantiate(bullet, gunOffset.position, transform.rotation);
         Rigidbody2D rigidbody2D = spawnedBullet.GetComponent<Rigidbody2D>();
-
         rigidbody2D.velocity = bulletSpeed * transform.up;
     }
 

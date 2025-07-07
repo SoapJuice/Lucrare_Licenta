@@ -22,23 +22,23 @@ public class Grid : MonoBehaviour
 
     private Tile endTile;
     private int[,] level;
-    private static int playCount = 0; // Track how many times we've played
+    private AdaptiveMapGenerator Adaptmap;
 
     private void Start()
     {
-        // For first 3 plays, use random map, then switch to adaptive
-        if (playCount < 3)
+        
+        level = RandomMapGenerator.GenerateLevel();
+
+        if (GameManager.Instance.savedStats.rooms > 0)
         {
-            level = RandomMapGenerator.GenerateLevel(GameManager.Instance.lastLevelResult);
-            AdaptiveMapGenerator.GenerateLevel();
-            playCount++;
-        }
-        else
-        {
-            level = AdaptiveMapGenerator.GenerateLevel();
+            Adaptmap = new AdaptiveMapGenerator();
+            level = Adaptmap.GenerateLevel();
         }
 
+        GameManager.Instance.levelStats.enemysKilled = 0;
+
         GenerateBase();
+
         PrintMatrix(level);
     }
 
@@ -49,7 +49,7 @@ public class Grid : MonoBehaviour
             player.transform.position.y >= endTile.transform.position.y - 0.3f &&
             player.transform.position.y <= endTile.transform.position.y + 0.3f)
         {
-            GameManager.Instance.LevelEnded(LevelEndCondition.LevelCompleted);
+            GameManager.Instance.LevelEnded();
         }
     }
 
@@ -104,8 +104,6 @@ public class Grid : MonoBehaviour
         spawnedStartTile.PatternColor(i % 2 == 0 && j % 2 != 0 || i % 2 != 0 && j % 2 == 0);
     }
 
-    
-
     void PrintMatrix(int[,] matrix)
     {
         string output = "Level Matrix:\n";
@@ -114,9 +112,9 @@ public class Grid : MonoBehaviour
         {
             for (int col = 0; col < matrix.GetLength(1); col++)
             {
-                output += matrix[row, col] + " "; // Add space between numbers
+                output += matrix[row, col] + " ";
             }
-            output += "\n"; // New line after each row
+            output += "\n";
         }
 
         Debug.Log(output);

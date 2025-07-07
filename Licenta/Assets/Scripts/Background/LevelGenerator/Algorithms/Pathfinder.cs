@@ -26,7 +26,7 @@ public class Pathfinder : MonoBehaviour
                 int nx = current.x + dx[i], ny = current.y + dy[i];
                 if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
                 if (visited[ny, nx]) continue;
-                if (map[ny, nx] == 9) continue; // wall
+                if (map[ny, nx] == 9) continue;
 
                 visited[ny, nx] = true;
                 queue.Enqueue(new Vector2Int(nx, ny));

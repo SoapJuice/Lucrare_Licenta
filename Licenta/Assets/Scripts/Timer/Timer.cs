@@ -28,7 +28,7 @@ public class Timer : MonoBehaviour
 
         if (remainingTime <= 0.1 )
         {
-            GameManager.Instance.LevelEnded(LevelEndCondition.TimeOut);
+            GameManager.Instance.LevelEnded();
         }
     }
 

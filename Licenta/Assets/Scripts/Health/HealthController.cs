@@ -25,6 +25,7 @@ public class HealthController : MonoBehaviour
     private void Start()
     {
         currentHeatlh = maxHealth;
+        GameManager.Instance.levelStats.remainingPlayerHealth = getHealthPercentage();
     }
     public void TakeDamage(float damage)
     {
@@ -45,7 +46,7 @@ public class HealthController : MonoBehaviour
         if (currentHeatlh <= 0)
         {
             currentHeatlh = 0;
-            GameManager.Instance.LevelEnded(LevelEndCondition.PlayerDeath);
+            GameManager.Instance.LevelEnded();
         }
         else
         {

@@ -2,22 +2,30 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using static UnityEditor.Rendering.CameraUI;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    public Stats levelStats {  get; private set; }
-    public LevelResult lastLevelResult { get; private set; }
+    public Stats levelStats = new Stats();
+
+    public Stats savedStats = new Stats();
+
+    public string difficulty = "";
+
+    public int playerType = 0;
+
+    public SimpleRLNeuralNetwork neuralNetwork;
+
+
 
     private void Awake()
     {
         if (Instance == null)
         {
-            Instance = this;
             DontDestroyOnLoad(gameObject);
-            levelStats = new Stats();
+            Instance = this;
+            neuralNetwork = new SimpleRLNeuralNetwork(new int[] { 7, 10, 3 });
         }
         else
         {
@@ -25,41 +33,60 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void LevelEnded(LevelEndCondition condition)
+
+    public void LevelEnded()
     {
-        lastLevelResult = new LevelResult(condition, levelStats.remainingPlayerHealth, levelStats.remainingTime, levelStats.enemyKills);
-        Debug.Log("wincon: " + condition);
-        Debug.Log("remaining health: " + levelStats.remainingPlayerHealth);
-        Debug.Log("remaining time: " + levelStats.remainingTime);
-        Debug.Log("kills: " + levelStats.enemyKills);
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        GameManager.Instance.savedStats = levelStats;
+
+        GameManager.Instance.savedStats.rooms += 1;
+        SceneManager.LoadScene("Game");
+
+        //Debug.Log("remaining health: " + savedStats.remainingPlayerHealth);
+        //Debug.Log("remaining time: " + savedStats.remainingTime);
+        //Debug.Log("enemy: " + savedStats.enemysKilled);
+        //Debug.Log("total enemy kills: " + savedStats.totalEnemysKilled);
+        //Debug.Log("rooms " + savedStats.rooms);
+
+    }
+
+    public void PrintHistory()
+    {
+        var hist = savedStats.history;
+        if (hist == null || hist.Count == 0)
+        {
+            Debug.Log("History is empty.");
+            return;
+        }
+
+        for (int i = 0; i < hist.Count; i++)
+        {
+            Vector3 v = hist[i];
+            Debug.Log($"Run #{i + 1}: TimeRatio={v.x:F2}, HPRatio={v.y:F2}, KillRatio={v.z:F2}");
+        }
     }
 }
 
 public class Stats
 {
     public float remainingPlayerHealth;
-    public float remainingTime;
-    public float enemyKills;
-}
-public enum LevelEndCondition
-{
-    PlayerDeath,
-    TimeOut,
-    LevelCompleted
-}
-public struct LevelResult
-{
-    public LevelEndCondition endCondition;
-    public float healthRemaining;
-    public float timeRemaining;
-    public float enemyKills;
 
-    public LevelResult(LevelEndCondition condition, float health, float time, float kills)
+    public float remainingTime;
+
+    public int totalEnemys = 3;
+    public int totalEnemysKilled;
+    public int enemysKilled;
+
+    public int rooms;
+
+    public List<(float[] input, float reward)> policyHistory = new List<(float[], float)>();
+
+
+    public List<Vector3> history;
+
+    public Stats()
     {
-        endCondition = condition;
-        healthRemaining = health;
-        timeRemaining = time;
-        enemyKills = kills;
+        history = new List<Vector3>();
     }
+
+
 }
